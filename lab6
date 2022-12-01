@@ -1,0 +1,147 @@
+def truthCheck(formula):
+    disjunctsList = knf(formula)
+    S = [disjunctsList]
+    temporaryS = []
+    for i in range(len(S[0])):
+        for j in range(i, len(S[0])):
+            resolutionDisjunct = resolution(S[0][i], S[0][j])
+            if resolutionDisjunct:
+                if not isInList(resolutionDisjunct, temporaryS):
+                    temporaryS.append(resolutionDisjunct)
+    S.append(temporaryS)
+    if emptyDisjuncts(S[0]): return "виконується"
+    sCounter = 0
+    while True:
+        temporaryS = []
+        missingResolutions = 0
+        for i in range(len(S[sCounter])):
+            for j in range(1, len(S[sCounter + 1])):
+                resolutionDisjunct = resolution(S[sCounter][i], S[sCounter + 1][j])
+                if resolutionDisjunct:
+                    if not isInList(resolutionDisjunct, temporaryS):
+                        temporaryS.append(resolutionDisjunct)
+                else:
+                    missingResolutions += 1
+        S.append(temporaryS)
+        if emptyDisjuncts(S[sCounter + 1]): return "виконується"
+        if missingResolutions == len(S[sCounter]) * (len(S[sCounter + 1]) - 1): return "не виконується"
+        sCounter += 1
+
+
+def knf(formula):
+    disjunctsList = []
+    implicationsList = formula.split(",")
+    for i in range(len(implicationsList)):
+        disjuncts = implicationsList[i].split("->")
+        if not i == len(implicationsList) - 1:
+            if disjuncts[0][0] == '¬':
+                disjuncts[0] = disjuncts[0][1]
+            else:
+                disjuncts[0] = '¬' + disjuncts[0]
+        if i == 2:
+            disjuncts = implicationsList[i].split("∨")
+        else:
+            disjuncts.append("∅")
+        disjunctsList.append(disjuncts)
+    return disjunctsList
+
+
+def opposite(disjunct):
+    if disjunct[0] == '¬':
+        disjunct = disjunct[1]
+    else:
+        disjunct = '¬' + disjunct[0]
+    return disjunct
+
+
+def resolution(disjuncts1, disjuncts2):
+    resolutionDisjunct = []
+    for i in range(len(disjuncts1)):
+        for j in range(len(disjuncts2)):
+            if disjuncts1[i] == opposite(disjuncts2[j]):
+                if disjuncts1[i ^ 1] == "∅":
+                    resolutionDisjunct = [disjuncts2[j ^ 1], disjuncts1[i ^ 1]]
+                else:
+                    resolutionDisjunct = [disjuncts1[i ^ 1], disjuncts2[j ^ 1]]
+    return resolutionDisjunct
+
+
+def isInList(disjunct, sList):
+    if disjunct not in sList:
+        return False
+    else:
+        return True
+
+
+def emptyDisjuncts(disjunctsList):
+    for disjunct in disjunctsList:
+        if disjunct[0] == '∅' and disjunct[1] == '∅':
+            return True
+    return False
+
+
+def unification(disjunct):
+    predicatsRaw = disjunct.split('W={')
+    predicats = predicatsRaw[1].replace('}', '').split(", ")
+    predicat1 = predicats[0]
+    predicat2 = predicats[1]
+    result = ""
+    predicat1Cursor = 0
+    predicat2Cursor = 0
+    replacement = []
+    while predicat1Cursor < len(predicat1) or predicat2Cursor < len(predicat2):
+        if not predicat1[predicat1Cursor] == predicat2[predicat2Cursor]:
+            if predicat1[predicat1Cursor] == 'x' or predicat1[predicat1Cursor] == 'y':
+                predicat2Element = returnElement(predicat2Cursor, predicat2)
+                replacement.append(predicat1[predicat1Cursor] + "/" + predicat2Element)
+                predicat1 = predicat1.replace(predicat1[predicat1Cursor], predicat2Element)
+                result += predicat2Element
+                predicat2Cursor += len(predicat2Element)
+                predicat1Cursor += len(predicat2Element)
+            elif predicat2[predicat2Cursor] == 'x' or predicat2[predicat2Cursor] == 'y':
+                predicat1Element = returnElement(predicat1Cursor, predicat1)
+                replacement.append(predicat2[predicat2Cursor] + "/" + predicat1Element)
+                predicat2 = predicat2.replace(predicat2[predicat1Cursor], predicat1Element)
+                result += predicat1Element
+                predicat1Cursor += len(predicat1Element)
+                predicat2Cursor += len(predicat1Element)
+            elif predicat1[predicat1Cursor] == 'f':
+                predicat1Function = returnElement(predicat1Cursor, predicat1)
+                result += predicat1Function
+                replacement.append(predicat2[predicat2Cursor] + "/" + predicat1Function)
+                predicat1Cursor += len(predicat1Function)
+                predicat2Cursor += 1
+            elif predicat2[predicat2Cursor] == 'f':
+                predicat2Function = returnElement(predicat2Cursor, predicat2)
+                result += predicat2Function
+                replacement.append(predicat1[predicat1Cursor] + "/" + predicat2Function)
+                predicat2Cursor += len(predicat2Function)
+                predicat1Cursor += 1
+        else:
+            result += predicat1[predicat1Cursor]
+            predicat1Cursor += 1
+            predicat2Cursor += 1
+    return "W={" + result + "}" + ", " + replacements(replacement)
+
+
+def returnElement(i, predicat):
+    for j in range(i, len(predicat)):
+        nextCommaPosition = predicat.find(',', i)
+        return predicat[i:nextCommaPosition]
+
+
+def replacements(replacement):
+    replacementString = "Заміна={"
+    for i in range(len(replacement)):
+        if not i == len(replacement) - 1:
+            replacementString += replacement[i] + ','
+        else:
+            replacementString += replacement[i]
+    replacementString += '}'
+    return replacementString
+
+
+print("Висловлювання ¬p v q,r v ¬q, p, s, ¬r ∧ ¬s " +
+      str(truthCheck("¬p v q,r v ¬q, p, s, ¬r ∧ ¬s")))
+print("Уніфікація W={P(b,x), P(y,f(a)} \n"
+      + unification("W={P(b,x), P(y,f(a)}"))
